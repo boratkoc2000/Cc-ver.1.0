@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CircuitCAD Pro v5.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; overflow: hidden; background: #0f172a; color: #e2e8f0; }
+        canvas { outline: none; }
+        
+        /* Sidebar Item Styling */
+        .component-drag { 
+            cursor: grab; 
+            user-select: none; 
+            transition: all 0.2s; 
+            background-color: #394255; /* Darker button bg */
+            border: 1px solid #4b5563;
+        }
+        .component-drag:hover { 
+            background-color: #4a5468; 
+            transform: translateY(-2px); 
+            border-color: #60a5fa; /* Blue glow on hover */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        .component-drag:active { cursor: grabbing; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+        .properties-panel { transition: transform 0.2s ease-in-out; }
+        .hidden-panel { transform: translateX(100%); }
+        .component-drag .label { pointer-events: none; }
+
+        .active-tool { 
+            background-color: #3b82f6 !important; 
+            border-color: #3b82f6 !important;
+            color: white !important;
+        }
+        
+        /* Icon Colors */
+        .icon-power { color: #facc15; }
+        .icon-ac { color: #a855f7; }
+        .icon-passive { color: #f87171; }
+        .icon-logic { color: #e2e8f0; /* White/Gray for standard logic symbols */ }
+    </style>
+</head>
+<body class="flex h-screen w-screen" oncontextmenu="return false;">
+
+    <!-- Left Sidebar: Components -->
+    <aside class="w-72 bg-[#2c3243] border-r border-gray-700 flex flex-col z-20 shadow-xl select-none">
+        <div class="p-4 border-b border-gray-700 bg-[#202436]">
+            <h1 class="text-lg font-bold text-blue-400 font-mono tracking-wider">⚡ CIRCUIT<span class="text-white">CAD</span></h1>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-3 space-y-6">
+            <!-- Power Section -->
+            <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Power</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="battery">
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="icon-power pointer-events-none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
+                            <path d="M0 20h15" /> <!-- Left Wire -->
+                            <path d="M15 5v30" /> <!-- Long Plate (+) -->
+                            <path d="M25 12v16" stroke-width="5" /> <!-- Short Plate (-) -->
+                            <path d="M25 20h15" stroke-width="3" /> <!-- Right Wire -->
+                        </svg>
+                        <span class="text-xs text-gray-300 label">DC 9V</span>
+                    </div>
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="ac_source">
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="icon-ac pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <circle cx="20" cy="20" r="15" />
+                            <path d="M13 20c2-5 5-5 7 0s5 5 7 0" />
+                        </svg>
+                        <span class="text-xs text-gray-300 label">AC Gen</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Components Section -->
+            <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Passive & IO</h3>
+                <div class="grid grid-cols-2 gap-2">
+                     <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="resistor">
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="text-orange-400 pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M2 20h6l4-8 6 16 6-16 4 8h6" />
+                        </svg>
+                        <span class="text-xs text-gray-300 label">Resistor</span>
+                    </div>
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="led">
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="icon-passive pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M5 20h10M25 20h10M15 10v20l10-10-10-10zM25 10v20" />
+                            <path d="M20 5l5-5m-2 5l2-5" />
+                        </svg>
+                        <span class="text-xs text-gray-300 label">LED</span>
+                    </div>
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="fuse">
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="text-teal-400 pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <rect x="5" y="12" width="30" height="16" /> <!-- Box -->
+                            <path d="M0 20h40" /> <!-- Wire -->
+                        </svg>
+                        <span class="text-xs text-gray-300 label">Fuse</span>
+                    </div>
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="switch">
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="text-gray-300 pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M5 20h10l15-10M30 20h5" />
+                            <circle cx="15" cy="20" r="2" fill="currentColor" class="text-gray-500"/>
+                            <circle cx="30" cy="20" r="2" fill="currentColor" class="text-gray-500"/>
+                        </svg>
+                        <span class="text-xs text-gray-300 label">Switch</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logic Section -->
+            <div>
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Logic Gates</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="and">
+                        <!-- TRUE AND SYMBOL: Flat back, curved front -->
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="icon-logic pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M10 5v30h10a15 15 0 0 0 0-30z" /> <!-- D Shape -->
+                            <path d="M0 12h10M0 28h10M35 20h5" /> <!-- Leads -->
+                        </svg>
+                        <span class="text-xs text-gray-300 label">AND</span>
+                    </div>
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="or">
+                        <!-- TRUE OR SYMBOL: Concave back, pointed front -->
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="icon-logic pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <!-- Concave back path and pointed front -->
+                            <path d="M5 5 q15 5 25 15 q-10 10 -25 15 q5-15 0-30" /> 
+                            <path d="M0 10h7M0 30h7M30 20h10" /> <!-- Leads -->
+                        </svg>
+                        <span class="text-xs text-gray-300 label">OR</span>
+                    </div>
+                    <div class="component-drag p-3 rounded-xl flex flex-col items-center gap-2" draggable="true" data-type="not">
+                        <!-- TRUE NOT SYMBOL: Triangle with circle -->
+                        <svg width="32" height="32" viewBox="0 0 40 40" class="icon-logic pointer-events-none" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M10 5 l 20 15 l -20 15 v -30" /> <!-- Triangle -->
+                            <circle cx="33" cy="20" r="4" /> <!-- Bubble -->
+                            <path d="M0 20h10M37 20h3" /> <!-- Leads -->
+                        </svg>
+                        <span class="text-xs text-gray-300 label">NOT</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Canvas Area -->
+    <main class="flex-1 relative bg-[#202436] overflow-hidden" id="canvas-container">
+        <!-- Toolbar -->
+        <div class="absolute top-4 left-4 flex gap-2 z-10">
+            <button id="tool-select" class="bg-[#394255] p-2 rounded-lg border border-gray-600 hover:bg-[#4a5468] text-gray-300 shadow-lg active-tool" title="Select (S)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+            </button>
+            <button id="tool-wire" class="bg-[#394255] p-2 rounded-lg border border-gray-600 hover:bg-[#4a5468] text-gray-300 shadow-lg" title="Wire (W)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M5 12l4-4M5 12l4 4"/></svg>
+            </button>
+            <div class="w-px bg-gray-600 mx-1"></div>
+            <button id="btn-electrons" class="bg-[#394255] p-2 rounded-lg border border-gray-600 hover:bg-[#4a5468] text-gray-300 shadow-lg" title="Toggle Electrons (M)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            </button>
+            <button id="btn-rotate" class="bg-[#394255] p-2 rounded-lg border border-gray-600 hover:bg-[#4a5468] text-gray-300 shadow-lg" title="Rotate (R)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
+            </button>
+            <button id="btn-delete" class="bg-red-900/80 p-2 rounded-lg border border-red-700 hover:bg-red-800 text-red-200 shadow-lg" title="Delete (Del)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+        </div>
+
+        <div class="absolute bottom-4 left-4 text-xs font-mono text-gray-500 pointer-events-none select-none bg-[#202436]/90 p-2 rounded backdrop-blur-sm flex gap-4 border border-gray-700">
+            <span>COORD: <span id="debug-coord">0, 0</span></span>
+            <span>ZOOM: <span id="debug-zoom">100%</span></span>
+            <span class="text-green-400">WIRES: Auto L-Shape Routing | Release on Empty Space (Joint)</span>
+        </div>
+
+        <canvas id="circuit-canvas" class="block w-full h-full cursor-crosshair"></canvas>
+    </main>
+
+    <!-- Properties Panel (Kept hidden) -->
+    <aside id="properties-panel" class="w-64 bg-[#2c3243] border-l border-gray-700 z-20 shadow-xl properties-panel hidden-panel absolute right-0 top-0 bottom-0 flex flex-col">
+        <div class="p-4 border-b border-gray-700 bg-[#202436] flex justify-between items-center">
+            <h2 class="text-sm font-bold text-gray-200">Properties</h2>
+            <!-- Close button kept for design consistency, though it won't be necessary -->
+            <button id="btn-close-props" class="text-gray-400 hover:text-white">✕</button>
+        </div>
+        <div class="p-4 space-y-4 flex-1">
+            <div id="props-content">
+                <p class="text-xs text-gray-500 italic">This panel is disabled for a cleaner workspace.</p>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-700 bg-[#202436]">
+            <button id="btn-clear-all" class="w-full py-2 bg-red-900/50 hover:bg-red-900 text-red-200 text-xs rounded border border-red-800 transition">Clear Canvas</button>
+        </div>
+    </aside>
+
+<script>
+// --- CONFIG & CONSTANTS ---
+const GRID_SIZE = 20;
+const COLORS = {
+    grid: '#2c3243', gridMajor: '#394255', wireOff: '#4b5563', 
+    electronDot: '#22c55e', // Green for moving electrons (stripes)
+    selected: '#3b82f6', text: '#cbd5e1', pin: '#6b7280', pinHover: '#22c55e'
+};
+
+const ELECTRON_LENGTH = 6;
+const ELECTRON_SPACING = 4;
+const ELECTRON_SPEED = 0.1;
+
+const DEFS = {
+    battery: { width: 40, height: 40, pins: [{x:40, y:20}, {x:0, y:20}] },
+    ac_source: { width: 40, height: 40, pins: [{x:20, y:0}, {x:20, y:40}] }, 
+    switch:  { width: 40, height: 40, pins: [{x:0, y:20}, {x:40, y:20}] },
+    led:     { width: 60, height: 40, pins: [{x:0, y:20}, {x:60, y:20}] },
+    resistor:{ width: 60, height: 20, pins: [{x:0, y:10}, {x:60, y:10}] },
+    fuse:    { width: 60, height: 20, pins: [{x:0, y:10}, {x:60, y:10}] },
+    and:     { width: 60, height: 40, pins: [{x:0, y:10}, {x:0, y:30}, {x:60, y:20}] },
+    or:      { width: 60, height: 40, pins: [{x:0, y:10}, {x:0, y:30}, {x:60, y:20}] },
+    not:     { width: 60, height: 40, pins: [{x:0, y:20}, {x:60, y:20}] },
+    clock:   { width: 40, height: 40, pins: [{x:40, y:20}] },
+    joint:   { width: 10, height: 10, pins: [{x:5, y:5}] }
+};
+
+const snap = v => Math.round(v / GRID_SIZE) * GRID_SIZE;
+
+// --- DRAWING FUNCTIONS ---
+function drawComponentGraphic(ctx, type, w, h, state) {
+    ctx.strokeStyle = '#9ca3af'; // Lighter gray for drawing
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#202436'; // Canvas BG color
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.beginPath();
+    
+    if (type === 'battery') {
+        ctx.moveTo(0, h/2); ctx.lineTo(15, h/2); // Left wire
+        ctx.moveTo(25, h/2); ctx.lineTo(w, h/2); // Right wire
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.lineWidth=2; ctx.moveTo(15, 5); ctx.lineTo(15, 35); ctx.stroke(); // Long (+)
+        ctx.lineWidth=4; ctx.moveTo(25, 12); ctx.lineTo(25, 28); ctx.stroke(); // Short (-)
+        
+        ctx.fillStyle = "#eab308"; ctx.font = "10px monospace"; ctx.fillText("+", 10, 10);
+    } 
+    else if (type === 'ac_source') {
+        ctx.beginPath(); ctx.arc(w/2, h/2, 15, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(13, h/2); ctx.bezierCurveTo(13, h/2-8, 20, h/2-8, 20, h/2); ctx.bezierCurveTo(20, h/2+8, 27, h/2+8, 27, h/2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h/2-15); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(w/2, h); ctx.lineTo(w/2, h/2+15); ctx.stroke();
+    }
+    else if (type === 'fuse') {
+        // Box Style Fuse
+        ctx.strokeRect(5, 10, 30, 20); // Box
+        ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke(); // Line through
+    }
+    else if (type === 'switch') {
+        ctx.fillStyle = "#334155";
+        ctx.beginPath(); ctx.moveTo(10, 20);
+        if (state.on) ctx.lineTo(30, 20); else ctx.lineTo(28, 5);
+        ctx.stroke();
+        ctx.fillStyle = '#9ca3af';
+        ctx.beginPath(); ctx.arc(10, 20, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(30, 20, 2, 0, Math.PI*2); ctx.fill();
+    }
+    else if (type === 'led') {
+        const mid = w/2;
+        ctx.beginPath(); ctx.moveTo(mid-10, 10); ctx.lineTo(mid-10, 30); ctx.lineTo(mid+10, 20); ctx.closePath();
+        if (state.on) { ctx.fillStyle = '#ef4444'; ctx.shadowBlur=15; ctx.shadowColor='#ef4444'; ctx.fill(); ctx.shadowBlur=0;}
+        else { ctx.fillStyle = '#202436'; ctx.fill(); }
+        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(mid+10, 10); ctx.lineTo(mid+10, 30); ctx.stroke();
+        ctx.beginPath(); 
+        ctx.moveTo(mid, 5); ctx.lineTo(mid+8, -3); ctx.moveTo(mid+8, -3); ctx.lineTo(mid+3, -3); ctx.moveTo(mid+8, -3); ctx.lineTo(mid+8, 2);
+        ctx.moveTo(mid+6, 5); ctx.lineTo(mid+14, -3); ctx.moveTo(mid+14, -3); ctx.lineTo(mid+9, -3); ctx.moveTo(mid+14, -3); ctx.lineTo(mid+14, 2);
+        ctx.strokeStyle='#ef4444'; ctx.stroke();
+        ctx.strokeStyle='#94a3b8';
+        ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(mid-10, 20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(w, 20); ctx.lineTo(mid+10, 20); ctx.stroke();
+    }
+    else if (type === 'resistor') {
+        ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(10, 10); ctx.lineTo(15, 0); ctx.lineTo(25, 20); ctx.lineTo(35, 0); ctx.lineTo(45, 20); ctx.lineTo(50, 10); ctx.lineTo(60, 10); ctx.stroke();
+    }
+    // -- UPDATED LOGIC GATE DRAWING --
+    else if (type === 'and') {
+        // Standard AND: Flat back, Curved front (D-shape)
+        ctx.beginPath();
+        // Draw D shape
+        ctx.moveTo(10, 5); 
+        ctx.lineTo(10, 35); 
+        ctx.lineTo(30, 35); 
+        ctx.arc(30, 20, 15, Math.PI/2, -Math.PI/2, true); // Curve part
+        ctx.closePath();
+        ctx.stroke(); 
+        ctx.fillStyle = '#202436'; ctx.fill();
+        
+        // Pins
+        ctx.beginPath(); ctx.moveTo(0, 12); ctx.lineTo(10, 12); ctx.stroke(); // In 1
+        ctx.beginPath(); ctx.moveTo(0, 28); ctx.lineTo(10, 28); ctx.stroke(); // In 2
+        ctx.beginPath(); ctx.moveTo(45, 20); ctx.lineTo(60, 20); ctx.stroke(); // Out
+    }
+    else if (type === 'or') {
+        // Standard OR: Concave back, Pointed front
+        ctx.beginPath();
+        ctx.moveTo(5, 5);
+        ctx.quadraticCurveTo(20, 5, 45, 20); // Top curve
+        ctx.quadraticCurveTo(20, 35, 5, 35); // Bottom curve
+        ctx.quadraticCurveTo(15, 20, 5, 5);  // Back concave curve
+        ctx.stroke();
+        ctx.fillStyle = '#202436'; ctx.fill();
+        
+        // Pins
+        ctx.beginPath(); ctx.moveTo(0, 12); ctx.lineTo(10, 12); ctx.stroke(); // In 1 (approx hit)
+        ctx.beginPath(); ctx.moveTo(0, 28); ctx.lineTo(10, 28); ctx.stroke(); // In 2
+        ctx.beginPath(); ctx.moveTo(45, 20); ctx.lineTo(60, 20); ctx.stroke(); // Out
+    }
+    else if (type === 'not') {
+        // Standard NOT: Triangle with Bubble
+        ctx.beginPath();
+        ctx.moveTo(10, 5);
+        ctx.lineTo(40, 20);
+        ctx.lineTo(10, 35);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = '#202436'; ctx.fill();
+        
+        // Bubble
+        ctx.beginPath(); ctx.arc(44, 20, 4, 0, Math.PI*2); ctx.stroke();
+        
+        // Pins
+        ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(10, 20); ctx.stroke(); // In
+        ctx.beginPath(); ctx.moveTo(48, 20); ctx.lineTo(60, 20); ctx.stroke(); // Out
+    }
+    else if (type === 'clock') {
+        ctx.strokeRect(0, 0, w, h);
+        ctx.beginPath(); ctx.moveTo(5, 25); ctx.lineTo(15, 25); ctx.lineTo(15, 15); ctx.lineTo(25, 15); ctx.lineTo(25, 25); ctx.lineTo(35, 25); ctx.stroke();
+        if(state.on) { ctx.fillStyle='#a855f7'; ctx.globalAlpha=0.3; ctx.fillRect(0,0,w,h); ctx.globalAlpha=1; }
+    }
+    else if (type === 'joint') {
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath(); ctx.arc(5, 5, 3, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+// --- CLASS DEFINITIONS (Standard) ---
+class Pin {
+    constructor(parent, def) {
+        this.id = Math.random().toString(36).substr(2);
+        this.parent = parent;
+        this.def = def;
+        this.net = null; 
+    }
+    getWorldPos() {
+        const rad = (this.parent.rotation * Math.PI) / 180;
+        const cx = this.parent.def.width / 2;
+        const cy = this.parent.def.height / 2;
+        const ox = this.def.x - cx;
+        const oy = this.def.y - cy;
+        const rx = ox * Math.cos(rad) - oy * Math.sin(rad);
+        const ry = ox * Math.sin(rad) + oy * Math.cos(rad);
+        return { x: this.parent.x + cx + rx, y: this.parent.y + cy + ry };
+    }
+}
+
+class Component {
+    constructor(type, x, y) {
+        this.id = Math.random().toString(36).substr(2);
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.rotation = 0;
+        this.def = DEFS[type];
+        this.pins = this.def.pins.map(p => new Pin(this, p));
+        this.state = { on: false };
+    }
+    draw(ctx) {
+        ctx.save();
+        const cx = this.x + this.def.width / 2;
+        const cy = this.y + this.def.height / 2;
+        ctx.translate(cx, cy);
+        ctx.rotate((this.rotation * Math.PI) / 180);
+        ctx.translate(-this.def.width/2, -this.def.height/2);
+
+        if (app.selection === this) {
+            ctx.strokeStyle = COLORS.selected;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 2]);
+            ctx.strokeRect(-5, -5, this.def.width + 10, this.def.height + 10);
+            ctx.setLineDash([]);
+        }
+        drawComponentGraphic(ctx, this.type, this.def.width, this.def.height, this.state);
+        ctx.restore();
+
+        this.pins.forEach(pin => {
+            const pos = pin.getWorldPos();
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 5, 0, Math.PI*2);
+            ctx.fillStyle = app.hoverPin === pin ? COLORS.pinHover : COLORS.pin;
+            if(app.hoverPin === pin) { ctx.shadowColor=COLORS.pinHover; ctx.shadowBlur=8; }
+            ctx.fill();
+            ctx.shadowBlur=0;
+        });
+    }
+    contains(wx, wy) {
+        return wx >= this.x && wx <= this.x + this.def.width && wy >= this.y && wy <= this.y + this.def.height;
+    }
+}
+
+class Wire {
+    constructor(p1, p2) {
+        this.startPin = p1;
+        this.endPin = p2;
+    }
+
+    getWireSegments() {
+        const p1 = this.startPin.getWorldPos();
+        const p2 = this.endPin.getWorldPos();
+        // L-Shape routing (Manhattan distance, preferring horizontal first)
+        const bendX = p2.x; 
+        const bendY = p1.y; 
+        return [
+            { x1: p1.x, y1: p1.y, x2: bendX, y2: bendY },
+            { x1: bendX, y1: bendY, x2: p2.x, y2: p2.y }
+        ];
+    }
+
+    draw(ctx) {
+        const segments = this.getWireSegments();
+        const net = this.startPin.net;
+        const isFlowing = net && net.isFlowing; 
+        
+        ctx.beginPath();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = isFlowing ? COLORS.electronDot : COLORS.wireOff;
+        ctx.shadowBlur = 0;
+        ctx.lineCap = 'round';
+
+        ctx.moveTo(segments[0].x1, segments[0].y1);
+        segments.forEach(seg => ctx.lineTo(seg.x2, seg.y2));
+        ctx.stroke();
+        
+        if (app.showElectrons && isFlowing) {
+            const halfLen = ELECTRON_LENGTH / 2;
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = COLORS.electronDot;
+            ctx.shadowColor = COLORS.electronDot;
+            ctx.shadowBlur = 5;
+
+            const flowOffset = (Date.now() * ELECTRON_SPEED) % ELECTRON_SPACING;
+            let currentDistance = flowOffset;
+
+            segments.forEach(seg => {
+                const dx = seg.x2 - seg.x1;
+                const dy = seg.y2 - seg.y1;
+                const len = Math.hypot(dx, dy);
+                const ux = dx / len;
+                const uy = dy / len;
+
+                let electronPos = currentDistance;
+                while (electronPos < len) {
+                    const x = seg.x1 + ux * electronPos;
+                    const y = seg.y1 + uy * electronPos;
+                    ctx.beginPath();
+                    ctx.moveTo(x - ux * halfLen, y - uy * halfLen);
+                    ctx.lineTo(x + ux * halfLen, y + uy * halfLen);
+                    ctx.stroke();
+                    electronPos += ELECTRON_SPACING;
+                }
+                currentDistance = currentDistance + len - (electronPos - ELECTRON_SPACING);
+            });
+        }
+
+        ctx.shadowBlur = 0;
+        const p1 = this.startPin.getWorldPos();
+        const p2 = this.endPin.getWorldPos();
+        let jointColor = isFlowing ? COLORS.electronDot : COLORS.wireOff;
+        ctx.fillStyle = jointColor;
+        ctx.shadowColor = jointColor;
+        ctx.shadowBlur = isFlowing ? 5 : 0; 
+        ctx.beginPath(); ctx.arc(p1.x, p1.y, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p2.x, p2.y, 3, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur=0;
+    }
+}
+
+// --- MAIN APP ---
+class CircuitApp {
+    constructor() {
+        this.canvas = document.getElementById('circuit-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.components = [];
+        this.wires = [];
+        this.view = { x: 0, y: 0, zoom: 1 };
+        this.tool = 'select';
+        this.lastMouse = {x:0, y:0};
+        this.ghostCanvas = document.createElement('canvas');
+        this.wireStart = null;
+        this.showElectrons = true; 
+        this.toolBeforeWire = null; 
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupInteraction();
+        setInterval(() => this.clockTick(), 500);
+        this.renderLoop();
+        this.updateElectronButtonState(); 
+        
+        // Hide the properties panel initially and disable its close button handler
+        document.getElementById('properties-panel').classList.add('hidden-panel');
+        document.getElementById('btn-close-props').onclick = null;
+    }
+
+    resize() {
+        this.canvas.width = this.canvas.parentElement.offsetWidth;
+        this.canvas.height = this.canvas.parentElement.offsetHeight;
+    }
+
+    setupInteraction() {
+        document.querySelectorAll('.component-drag').forEach(el => {
+            el.addEventListener('dragstart', e => {
+                const type = el.dataset.type;
+                const def = DEFS[type];
+                this.ghostCanvas.width = def.width + 20;
+                this.ghostCanvas.height = def.height + 20;
+                const gCtx = this.ghostCanvas.getContext('2d');
+                gCtx.translate(10, 10);
+                drawComponentGraphic(gCtx, type, def.width, def.height, {on:true});
+                e.dataTransfer.setDragImage(this.ghostCanvas, def.width/2+10, def.height/2+10);
+                e.dataTransfer.setData('type', type);
+            });
+        });
+
+        const container = document.getElementById('canvas-container');
+        container.addEventListener('dragover', e => e.preventDefault());
+        container.addEventListener('drop', e => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('type');
+            const rect = this.canvas.getBoundingClientRect();
+            const wx = (e.clientX - rect.left - this.view.x) / this.view.zoom;
+            const wy = (e.clientY - rect.top - this.view.y) / this.view.zoom;
+            this.components.push(new Component(type, snap(wx), snap(wy)));
+            this.sim();
+        });
+
+        this.canvas.addEventListener('mousedown', e => this.onDown(e));
+        this.canvas.addEventListener('mousemove', e => this.onMove(e));
+        this.canvas.addEventListener('mouseup', e => this.onUp(e));
+        this.canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const d = e.deltaY > 0 ? -0.1 : 0.1;
+            this.view.zoom = Math.max(0.2, Math.min(3, this.view.zoom + d));
+            document.getElementById('debug-zoom').innerText = Math.round(this.view.zoom*100) + "%";
+        }, {passive:false});
+
+        window.addEventListener('keydown', e => {
+            if(e.key === 'Delete' && this.selection) {
+                this.wires = this.wires.filter(w => w.startPin.parent !== this.selection && w.endPin.parent !== this.selection);
+                this.components = this.components.filter(c => c !== this.selection);
+                this.selection = null;
+                this.sim();
+            }
+            if(e.key.toLowerCase() === 'r' && this.selection) this.selection.rotation = (this.selection.rotation+90)%360;
+            if(e.key.toLowerCase() === 'm') this.toggleElectrons();
+        });
+
+        document.getElementById('tool-select').onclick = () => this.setTool('select');
+        document.getElementById('tool-wire').onclick = () => this.setTool('wire');
+        document.getElementById('btn-rotate').onclick = () => { if(this.selection) this.selection.rotation = (this.selection.rotation+90)%360; };
+        document.getElementById('btn-delete').onclick = () => { 
+            if(this.selection) { 
+                this.wires = this.wires.filter(w => w.startPin.parent !== this.selection && w.endPin.parent !== this.selection);
+                this.components = this.components.filter(c => c !== this.selection);
+                this.selection = null;
+                this.sim();
+            }
+        }; 
+        document.getElementById('btn-clear-all').onclick = () => { this.components=[]; this.wires=[]; this.selection=null; this.sim(); };
+    }
+
+    updateElectronButtonState() {
+        const btn = document.getElementById('btn-electrons');
+        if(this.showElectrons) {
+            btn.classList.add('active-tool', 'text-green-400', 'border-green-400');
+            btn.classList.remove('text-gray-300', 'border-gray-600');
+        } else {
+            btn.classList.remove('active-tool', 'text-green-400', 'border-green-400');
+            btn.classList.add('text-gray-300', 'border-gray-600');
+        }
+    }
+    
+    toggleElectrons() {
+        this.showElectrons = !this.showElectrons;
+        this.updateElectronButtonState();
+        this.sim(); 
+    }
+
+    setTool(t) {
+        this.tool = t;
+        document.querySelectorAll('#canvas-container button').forEach(b => b.classList.remove('active-tool'));
+        if(t==='select') document.getElementById('tool-select').classList.add('active-tool');
+        if(t==='wire') document.getElementById('tool-wire').classList.add('active-tool');
+        this.updateElectronButtonState(); 
+    }
+
+    getMouseWorld(e) {
+        const r = this.canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - r.left - this.view.x) / this.view.zoom,
+            y: (e.clientY - r.top - this.view.y) / this.view.zoom,
+            sx: e.clientX, sy: e.clientY
+        };
+    }
+
+    findPin(x, y) {
+        for(let c of this.components) 
+            for(let p of c.pins) 
+                if(Math.hypot(p.getWorldPos().x-x, p.getWorldPos().y-y) < 12) return p;
+        return null;
+    }
+
+    onDown(e) {
+        const m = this.getMouseWorld(e);
+        this.lastMouse = {x: m.sx, y: m.sy};
+        
+        if(e.button === 2) { return; }
+        if(e.button === 1) { this.isPanning = true; return; }
+
+        const pin = this.findPin(m.x, m.y);
+        if(pin && this.tool === 'wire') { this.wireStart = pin; return; }
+        
+        if(pin && this.tool === 'select') { 
+             this.wireStart = pin; 
+             this.toolBeforeWire = 'select';
+             this.setTool('wire'); 
+             return;
+        }
+
+        for(let i=this.components.length-1; i>=0; i--) {
+            const c = this.components[i];
+            if(c.contains(m.x, m.y)) {
+                this.selection = c;
+                this.dragComp = { ox: m.x - c.x, oy: m.y - c.y };
+                if(c.type === 'switch') { c.state.on = !c.state.on; this.sim(); }
+                // Removed: this.showProps(c); 
+                return;
+            }
+        }
+        this.selection = null;
+        this.isPanning = true;
+        // Removed: document.getElementById('properties-panel').classList.add('hidden-panel');
+    }
+
+    onMove(e) {
+        const m = this.getMouseWorld(e);
+        const dx = m.sx - this.lastMouse.x;
+        const dy = m.sy - this.lastMouse.y;
+        this.lastMouse = {x: m.sx, y: m.sy};
+        document.getElementById('debug-coord').innerText = `${Math.round(m.x)}, ${Math.round(m.y)}`;
+
+        if(this.isPanning || e.buttons === 4) { 
+            this.view.x += dx; this.view.y += dy; return; 
+        }
+        if(this.selection && this.dragComp) {
+            this.selection.x = snap(m.x - this.dragComp.ox);
+            this.selection.y = snap(m.y - this.dragComp.oy);
+        }
+        this.hoverPin = this.findPin(m.x, m.y);
+    }
+
+    onUp(e) {
+        const m = this.getMouseWorld(e);
+        
+        if(this.wireStart && e.button === 0) { 
+            const pin = this.findPin(m.x, m.y);
+            
+            if(pin && pin !== this.wireStart && pin.parent !== this.wireStart.parent) {
+                this.wires.push(new Wire(this.wireStart, pin));
+                this.sim();
+            } else if (!pin) {
+                const snappedX = snap(m.x);
+                const snappedY = snap(m.y);
+                const joint = new Component('joint', snappedX - 5, snappedY - 5);
+                this.components.push(joint);
+                this.wires.push(new Wire(this.wireStart, joint.pins[0]));
+                this.sim();
+            }
+        }
+        
+        this.isPanning = false;
+        this.wireStart = null;
+        this.dragComp = null;
+        
+        if (this.tool === 'wire' && this.toolBeforeWire === 'select') {
+             this.setTool('select');
+             this.toolBeforeWire = null;
+        }
+    }
+
+    // Removed the showProps(c) function entirely
+
+    clockTick() {
+        let chg = false;
+        this.components.forEach(c => { if(c.type==='clock' || c.type==='ac_source') { c.state.on=!c.state.on; chg=true; } });
+        if(chg) this.sim();
+    }
+
+    sim() {
+        const allPins = this.components.flatMap(c => c.pins);
+        allPins.forEach(p => { p.net = null; p.parent.state.on = false; });
+        
+        let nets = [];
+        let netId = 0;
+        
+        const traceNet = (startPin) => {
+            if(startPin.net) return;
+            const net = { id: ++netId, pins: [], isHigh: false, isLow: false, isFlowing: false };
+            nets.push(net);
+            const q = [startPin];
+            startPin.net = net; net.pins.push(startPin);
+            
+            while(q.length) {
+                const p = q.shift();
+                this.wires.forEach(w => {
+                    if(w.startPin === p && !w.endPin.net) { w.endPin.net = net; net.pins.push(w.endPin); q.push(w.endPin); }
+                    if(w.endPin === p && !w.startPin.net) { w.startPin.net = net; net.pins.push(w.startPin); q.push(w.startPin); }
+                });
+                const c = p.parent;
+                if(c.type === 'joint' || (c.type === 'switch' && c.state.on)) {
+                    c.pins.forEach(other => { if(other!==p && !other.net) { other.net=net; net.pins.push(other); q.push(other); }});
+                }
+            }
+        };
+        allPins.forEach(p => traceNet(p));
+
+        this.components.forEach(c => {
+            if(c.type === 'battery') {
+                if(c.pins[0].net) c.pins[0].net.isHigh = true; 
+                if(c.pins[1].net) c.pins[1].net.isLow = true;  
+            }
+            if((c.type === 'clock' || c.type === 'ac_source') && c.state.on && c.pins[0].net) {
+                c.pins[0].net.isHigh = true;
+                if(c.pins.length > 1 && c.pins[1].net) c.pins[1].net.isLow = true;
+            }
+        });
+        
+        let potentialChanged = true;
+        let safetyPropagate = 0;
+        while(potentialChanged && safetyPropagate++ < 100) {
+            potentialChanged = false;
+            this.components.forEach(c => {
+                if(c.type === 'and' || c.type === 'or' || c.type === 'not') {
+                    const p1High = c.pins[0].net?.isHigh || false;
+                    const p2High = c.pins[1]?.net?.isHigh || false;
+                    const outPin = c.pins.slice(-1)[0];
+                    if(outPin && outPin.net) {
+                        let result = false;
+                        if(c.type === 'and') result = p1High && p2High;
+                        if(c.type === 'or') result = p1High || p2High;
+                        if(c.type === 'not') result = !p1High;
+                        
+                        if(result && !outPin.net.isHigh) {
+                            outPin.net.isHigh = true;
+                            potentialChanged = true;
+                        }
+                    }
+                }
+            });
+        }
+        
+        const pathFinder = (currentNet, visited = new Set()) => {
+            if (currentNet.isLow) {
+                currentNet.isFlowing = true;
+                return true; 
+            }
+            if (visited.has(currentNet.id) || currentNet.isFlowing) return currentNet.isFlowing; 
+            
+            const nextVisited = new Set(visited);
+            nextVisited.add(currentNet.id);
+
+            let pathFound = false;
+            
+            for (const p of currentNet.pins) {
+                const c = p.parent;
+                let isConductive = false;
+                
+                if (c.type === 'joint') isConductive = true;
+                if (c.type === 'switch' && c.state.on) isConductive = true;
+                if (['resistor', 'led', 'fuse'].includes(c.type)) isConductive = true;
+                if (['and', 'or', 'not'].includes(c.type) && c.state.on) isConductive = true;
+
+                if (isConductive) {
+                    for (const otherPin of c.pins) {
+                        if (otherPin.net && otherPin.net !== currentNet) {
+                            if (pathFinder(otherPin.net, nextVisited)) {
+                                pathFound = true;
+                                break; 
+                            }
+                        }
+                    }
+                }
+                if (pathFound) break;
+            }
+
+            if (pathFound) {
+                currentNet.isFlowing = true;
+                return true;
+            }
+            return false;
+        };
+
+        nets.filter(n => n.isHigh).forEach(highNet => {
+            pathFinder(highNet);
+        });
+
+        this.components.forEach(c => {
+            if(c.type === 'led') {
+                // LED needs to be connected between a high-potential (isHigh) net that is also flowing (isFlowing) 
+                // and a low-potential net (isLow - currently implicit via pathFinder reaching it).
+                // A simplified logic is checking if the input net is flowing.
+                if(c.pins[0].net?.isFlowing) { 
+                     c.state.on = true;
+                } else {
+                     c.state.on = false;
+                }
+            }
+            if(['and', 'or', 'not'].includes(c.type)) {
+                // Logic gate output is controlled by the logic propagation loop
+                c.state.on = c.pins.slice(-1)[0].net?.isHigh || false;
+            }
+        });
+    }
+
+    renderLoop() {
+        this.ctx.fillStyle = '#202436';
+        this.ctx.fillRect(0,0,this.canvas.width, this.canvas.height);
+        this.ctx.save();
+        this.ctx.translate(this.view.x, this.view.y);
+        this.ctx.scale(this.view.zoom, this.view.zoom);
+
+        this.ctx.strokeStyle = COLORS.grid;
+        this.ctx.beginPath();
+        for(let x=0; x<2000; x+=GRID_SIZE) { this.ctx.moveTo(x,0); this.ctx.lineTo(x,2000); }
+        for(let y=0; y<2000; y+=GRID_SIZE) { this.ctx.moveTo(0,y); this.ctx.lineTo(2000,y); }
+        this.ctx.stroke();
+
+        this.wires.forEach(w => w.draw(this.ctx));
+        this.components.forEach(c => c.draw(this.ctx));
+
+        if(this.wireStart) {
+            const p1 = this.wireStart.getWorldPos();
+            const m = this.getMouseWorld({clientX:this.lastMouse.x, clientY:this.lastMouse.y});
+            const bendX = m.x;
+            const bendY = p1.y;
+
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = '#64748b';
+            this.ctx.setLineDash([5,5]);
+            this.ctx.moveTo(p1.x, p1.y);
+            this.ctx.lineTo(bendX, bendY); 
+            this.ctx.lineTo(m.x, m.y);    
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
+
+        this.ctx.restore();
+        requestAnimationFrame(() => this.renderLoop());
+    }
+}
+
+const app = new CircuitApp();
+</script>
+</body>
+</html>
